@@ -22,19 +22,20 @@ public:
         wait_time = time_us;
     }
     
-    void send(uint8_t data_out) {
+    void send(uint16_t data_out) {
+        core_util_critical_section_enter();
         // Send start condition
         out = 0;
         wait_us(wait_time);
         out = 1;
         wait_us(wait_time);
         // Send the data
-        for(int i = 0; i < 8; i++) {
+        for(int i = 0; i < 16; i++) {
             // Send the inverted MSb
-            out = !((int)(data_out & 0x80));
+            out = !((bool)(data_out & 0x8000));
             wait_us(wait_time);
             // Send the actual MSb
-            out = (int)(data_out & 0x80);
+            out = (bool)(data_out & 0x8000);
             wait_us(wait_time);
             // Shift to next bit
             data_out = data_out << 1;
@@ -42,6 +43,7 @@ public:
         // Send the stop condition
         out = 1;
         wait_us(wait_time*4);
+        core_util_critical_section_exit();
     } 
 
 private:
@@ -54,8 +56,8 @@ private:
 int main() {
     ManchesterEncoder enc = ManchesterEncoder(D0, 412);
     wait(1);
-    enc.send(0x80);
-    enc.send(0xFF);
-    enc.send(0x11);
+    enc.send(0x8000);
+    enc.send(0xFF00);
+    enc.send(0x1100);
     wait(1);
 }
