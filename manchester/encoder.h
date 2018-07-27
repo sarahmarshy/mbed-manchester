@@ -20,8 +20,8 @@
 
 class ManchesterEncoder {
 public:
-    ManchesterEncoder(PinName pin, int time_us) : out(pin) {
-        out = 1;
+    ManchesterEncoder(PinName pin, int time_us, bool idle_state = 1) : out(pin) {
+        out = idle_state;
         wait_time = time_us;
     }
     
