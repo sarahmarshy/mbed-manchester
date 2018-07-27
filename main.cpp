@@ -17,7 +17,7 @@
 #include "encoder.h"
 
 int main() {
-    ManchesterEncoder enc = ManchesterEncoder(D0, 412);
+    ManchesterEncoder enc = ManchesterEncoder(D0, 1200);
     wait(1);
     enc.send(0x8000);
     enc.send(0xFF00);
