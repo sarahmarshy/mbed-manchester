@@ -20,12 +20,24 @@
 
 class ManchesterEncoder {
 public:
-    ManchesterEncoder(PinName pin, int baud, bool idle_state = 1) : _output_pin(pin) {
-        _output_pin = idle_state;
+    // Flag data ready
+    volatile bool data_ready;
+
+    ManchesterEncoder(PinName out_pin, PinName in_pin, int baud, bool idle_state = 1)
+        : _output_pin(out_pin),
+          _input_pin(in_pin) 
+    {
+          _output_pin = idle_state;
         // Half bit time in seconds
         float time_s = 1.0/(2.0*(float)baud);
         // Half bit time in microseconds
         _half_bit_time =  (int)(time_s * 1000000.0);
+        data_ready = false;
+        _input_pin.fall(callback(this, &ManchesterEncoder::fall_handler));
+    }
+    
+    uint16_t recv() {
+        return recv_data;
     }
     
     void send(uint16_t data_out) {
@@ -54,10 +66,68 @@ public:
     } 
 
 private:
+    
+    void clear_interrupts() {
+        _input_pin.fall(0);
+        _input_pin.rise(0);
+    } 
+
+    void stop() {
+        clear_interrupts();
+        if(rx_in_progress){
+            data_ready = true;
+        }
+        rx_in_progress = false;
+        _input_pin.fall(callback(this, &ManchesterEncoder::fall_handler));
+    }
+
+    void irq_handler() { 
+        clear_interrupts();
+        rx_in_progress = true;
+        data_ready = false;
+        // Clear any stop timers
+        t2.detach();
+        t1.attach_us(callback(this, &ManchesterEncoder::read_state), 1.5*(float)_half_bit_time);
+    }
+
+    void read_state() {
+        int state = _input_pin.read();
+        if (state == 0) {
+            uint16_t mask = 1 << (15-bit_count++);
+            recv_data |= mask;
+            _input_pin.rise(callback(this, &ManchesterEncoder::irq_handler));
+        }
+        else { 
+            if (bit_count < 16) { 
+                uint16_t mask = 0 << (15-bit_count++);
+                recv_data |= mask;
+            }
+            _input_pin.fall(callback(this, &ManchesterEncoder::irq_handler));
+            // Start a timer to check for stop condition
+            t2.attach_us(callback(this, &ManchesterEncoder::stop), 3.5*(float)_half_bit_time);
+        }
+    }
+ 
+    void fall_handler() {
+        bit_count = 0;
+        clear_interrupts();
+        // Rise handler called in less than 1.5*_half_bit_time means start condition
+        _input_pin.rise(callback(this, &ManchesterEncoder::irq_handler));
+        // Stop condition if rise handler is not called in time
+        t2.attach_us(callback(this, &ManchesterEncoder::stop), 1.5*(float)_half_bit_time);
+    }
+    
     // Pin to output encoded data
     DigitalOut _output_pin;
+    // Pin to read encoded data
+    InterruptIn _input_pin;
     // Half the time for each bit (1/(2*baud)) 
     int _half_bit_time;
+    volatile uint16_t recv_data;
+    volatile uint8_t bit_count;
+    volatile bool rx_in_progress;
+    Timeout t1;
+    Timeout t2;
 };
 
 #endif
