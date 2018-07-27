@@ -37,7 +37,9 @@ public:
     }
     
     uint16_t recv() {
-        return recv_data;
+        uin16_t ret = recv_data;
+        recv_data = 0;
+        return ret;
     }
     
     void send(uint16_t data_out) {
