@@ -17,10 +17,12 @@
 #include "encoder.h"
 
 int main() {
-    ManchesterEncoder enc = ManchesterEncoder(D0, 1200);
-    wait(1);
-    enc.send(0x8000);
-    enc.send(0xFF00);
-    enc.send(0x1100);
+    ManchesterEncoder enc = ManchesterEncoder(D0, D2, 1200);
+    // Send data
+    enc.send(0x8000);   
+    // Receive data 
+    while(!enc.data_ready) {}
+    uint16_t data = enc.recv();
+    printf("%d\r\n", data);
     wait(1);
 }
