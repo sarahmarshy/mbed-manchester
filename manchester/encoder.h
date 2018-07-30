@@ -37,7 +37,7 @@ public:
     }
     
     uint16_t recv() {
-        uin16_t ret = recv_data;
+        uint16_t ret = recv_data;
         recv_data = 0;
         return ret;
     }
@@ -94,20 +94,18 @@ private:
 
     void read_state() {
         int state = _input_pin.read();
-        if (state == 0) {
-            uint16_t mask = 1 << (15-bit_count++);
+        if (bit_count < 15) {
+            uint16_t mask = !((bool)state) << (15-bit_count++);
             recv_data |= mask;
+        }
+        if (state == 0) {
             _input_pin.rise(callback(this, &ManchesterEncoder::irq_handler));
         }
         else { 
-            if (bit_count < 16) { 
-                uint16_t mask = 0 << (15-bit_count++);
-                recv_data |= mask;
-            }
             _input_pin.fall(callback(this, &ManchesterEncoder::irq_handler));
-            // Start a timer to check for stop condition
-            t2.attach_us(callback(this, &ManchesterEncoder::stop), 3.5*(float)_half_bit_time);
         }
+        // Start a timer to check for stop condition
+        t2.attach_us(callback(this, &ManchesterEncoder::stop), 7*(float)_half_bit_time);
     }
  
     void fall_handler() {
